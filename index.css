@@ -68,6 +68,7 @@ body.fancy {
 }
 .fancy iframe {
   border: none;
+  border-radius: 16px;
 }
 .noselect {
   -webkit-touch-callout: none;

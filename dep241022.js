@@ -6,6 +6,7 @@ var _markdownIt = _interopRequireDefault(require("markdown-it"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 var md = new _markdownIt["default"]();
+window.md = md;
 
 
 },{"markdown-it":5}],2:[function(require,module,exports){
