@@ -3,6 +3,8 @@ body {
   margin: 0;
   padding: 0;
   overflow: clip;
+  width: 100%;
+  height: 100%;
 }
 body {
   width: 100vw;
@@ -11,6 +13,15 @@ body {
   --color-b: #fff;
   background-color: var(--color-a);
   color: var(--color-b);
+}
+
+.bbox {
+  margin: auto;width: 512px;height: 512px;
+}
+
+.bbox:target {
+  width: 100%;
+  height: 100%;
 }
 
 body.fancy {
