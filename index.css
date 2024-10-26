@@ -22,8 +22,21 @@ body {
   max-width: 100%;
 }
 
+@keyframes dysco {
+  from {
+    filter: hue-rotate(0deg);
+  }
+
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+
 .dysco {
-  
+  opacity: 0.5;
+  animation: dysco infinite 512s;
+  mix-blend-mode: overlay;
 }
 
 .flats {
@@ -34,6 +47,11 @@ body {
 }
 
 .bbox:target {
+  width: 100%;
+  height: 100%;
+}
+
+.bbox.fullscreen {
   width: 100%;
   height: 100%;
 }
