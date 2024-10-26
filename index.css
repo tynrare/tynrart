@@ -16,7 +16,21 @@ body {
 }
 
 .bbox {
-  margin: auto;width: 512px;height: 512px;
+  margin: auto;
+  width: 512px;
+  height: 512px;
+  max-width: 100%;
+}
+
+.dysco {
+  
+}
+
+.flats {
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  position: absolute;
 }
 
 .bbox:target {
