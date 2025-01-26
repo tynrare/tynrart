@@ -1,32 +1,36 @@
-<html>
-    <head>
-    <title>▮ tynr.art </title>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8"><meta charset="null"><meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="index.css">
-    <script src="dep241022.js" async="async" defer="defer"></script>
-    <script src="index.js" async="async" defer="defer"></script>
-    <script src="avessy.js" async="async" defer="defer"></script>
-    </head>
+<html lang="nonurl-friendly">
+	<head>
+		<meta charset="utf-8">
+		<title>canvas</title>
+	</head>
+	<style>
+	
+	html, body {
+		overflow: clip;
+		width: 100%;
+		height: 100%;
+	}
+	
+	img, canvas {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background-color: black;
+	}
+	
+	</style>
+	
+	<script src="index.js" async="async" defer="defer"></script>
+ <body>
+	<img src="./cube-alpha-256.png"></img>
+	<canvas id="level_canvas_d0" width="4" height="4"></canvas>
+	<script>
+	const canvas = document.querySelector("#level_canvas_d0") ?? null;
+	const ctx = canvas.getContext("2d");
+	ctx.fillStyle = "#FF0000";
+	ctx.fillRect(0, 0, 4, 4);
+	</script>
 
-    <body class="fancy">
-        <bb id="flip" class="wrap fill">
-            <super cut="t">
-            <bb id="main">
-            <text><h1>LOADING.</h1>
-            <p>yo.🍍</p>
-            <b>▮ </b></text>
-            </bb>
-            </super>
-            <bb class="flats"></bb>
-        </bb>
-       
-
-
-
-        <db id="source">https://gist.githubusercontent.com/tynrare/ae6fe3287a55839f1f9a33f8e1041c7e/raw/index.md</db>
-        <db id="credits"><a href="https://github.com/tynrare">author</a><version>v6</version><timestamp>2410212 xx:xx</timestamp></db>
-        <db id="palette">43002a 890027 d9243c ff6157 ffb762 c76e46 73392e 34111f 030710 273b2d 458239 9cb93b ffd832 ff823b d1401f 7c191a 310c1b 833f34 eb9c6e ffdaac ffffe4 bfc3c6 6d8a8d 293b49 041528 033e5e 1c92a7 77d6c1 ffe0dc ff88a9 c03b94 601761 
-        </db>
-
-    </body>
+ </body>
 </html>
