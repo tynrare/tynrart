@@ -10,15 +10,21 @@ function App() {
 	let viewport_w = 128;
 	let viewport_h = 128;
 	
+	let th = 0;
+	let Tc = 1000;
+	
 	// --- game
 	
 	function step(dt) {
-		ctx.fillStyle = "#FF0000";
-		const s = 4;
-		const t = Math.round(elapsed * 1e-3);
+		
+		const s = 16;
+
+		const t = Math.floor(elapsed * 1e-3);
 		const ts = t * s;
 		const x = ts % viewport_w;
 		const y = Math.floor(ts / viewport_w) * s;
+		
+		ctx.fillStyle = "#FFFEFF";
 		ctx.fillRect(x, y, s, s);
 	}
 	
@@ -45,13 +51,22 @@ function App() {
 		
 		resize();
 		
+		requestAnimationFrame(loop);
+		
 		const dt = e - elapsed;
 		elapsed = e;
 		
-		step(dt);
+		th += dt;
 		
-		requestAnimationFrame(loop);
+		if (th < Tc) {
+			return;
+		} else {
+			th -= Tc;
+		}
+		
+		step(dt);
 	}
+	
 
 	/**
 	* @param {CanvasElement} canvaselement .
@@ -60,6 +75,7 @@ function App() {
 		canvas = canvaselement;
 		ctx = canvas.getContext("2d");
 		active = true;
+		
 		loop();
 	}
 
