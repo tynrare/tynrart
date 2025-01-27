@@ -19,11 +19,18 @@
 		background-color: black;
 	}
 	
+	db {
+		display: none;
+	}
+	
 	</style>
 	
 	<script src="index.js" async="async" defer="defer"></script>
  <body>
-	<img src="./cube-alpha-256.png"></img>
+	<db>
+		<img src="./cube-alpha-256.png"></img>
+	</db>
+	
 	<canvas id="level_canvas_d0" width="4" height="4"></canvas>
 	<script>
 	const canvas = document.querySelector("#level_canvas_d0") ?? null;
