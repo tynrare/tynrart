@@ -17,6 +17,7 @@
 		left: 50%;
 		transform: translate(-50%, -50%);
 		background-color: black;
+		image-rendering: pixelated;
 	}
 	
 	db {
@@ -27,14 +28,24 @@
 	
 	<script src="index.js" async="async" defer="defer"></script>
  <body>
-	<db>
-		<img src="./cube-alpha-256.png"></img>
+	<config 
+		cellsize="64"
+		timescale="42"
+		timestep="1"
+	>
+	v1
+	</config>
+	<db id="images">
+		<img id="shieldwooden" src="./res/28.png"></img>
+		<img id="shieldsilver" src="./res/29.png"></img>
+		<img id="shieldgolden" src="./res/30.png"></img>
 	</db>
 	
 	<canvas id="level_canvas_d0" width="4" height="4"></canvas>
 	<script>
 	const canvas = document.querySelector("#level_canvas_d0") ?? null;
 	const ctx = canvas.getContext("2d");
+
 	ctx.fillStyle = "#FF0000";
 	ctx.fillRect(0, 0, 4, 4);
 	</script>
