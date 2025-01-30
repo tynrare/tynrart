@@ -28,6 +28,8 @@ function App(config) {
 	let viewport_len = viewport_w * viewport_h;
 	let viewport_clen = viewport_cw * viewport_ch;
 	
+	let STARTSTAMP = -1;
+	
 
 	let _th = 0;
 	
@@ -83,14 +85,23 @@ function App(config) {
 		
 		viewport_w = w;
 		viewport_h = h;
-		viewport_cw = Math.floor(viewport_w / CELLSIZE);
-		viewport_ch = Math.floor(viewport_h / CELLSIZE);
+		viewport_cw = Math.floor(viewport_w / CELLSIZE) + 1;
+		viewport_ch = Math.floor(viewport_h / CELLSIZE) + 1;
 		
 		viewport_len = viewport_w * viewport_h;
 		viewport_clen = viewport_cw * viewport_ch;
 		
 		canvas.width = viewport_w = w;
 		canvas.height = viewport_h = h;
+	}
+	
+	function _stampcorrection(timestamp) {
+		if (STARTSTAMP === -1) {
+			STARTSTAMP = timestamp;
+			console.log("LOADTIME:", timestamp);
+		}
+		
+		return timestamp - STARTSTAMP;
 	}
 
 	function loop(e = 0) {
@@ -102,7 +113,12 @@ function App(config) {
 		
 		requestAnimationFrame(loop);
 		
-		const se = e * timescale * 1e-3;
+		if (e === 0) {
+			return;
+		}
+		
+		const sce = _stampcorrection(e);
+		const se = sce * timescale * 1e-3;
 		
 		const dt = se - elapsed;
 		elapsed = se;
