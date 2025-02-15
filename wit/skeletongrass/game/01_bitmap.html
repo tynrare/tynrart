@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, minimal-ui, viewport-fit=cover, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <link rel="icon" type="image/png" href="res/dd/tile.png" />
+
+        <title>Skeletonbros • 01_bitmap</title>
+        <link href="../src/index.css" rel="stylesheet" />
+    </head>
+
+	<style>
+	
+	html, body {
+		overflow: clip;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+	}
+	
+	img, canvas {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background-color: black;
+		image-rendering: pixelated;
+	}
+	
+	db {
+		display: none;
+	}
+
+	.splashscreen {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		background-color: black;
+		color: white;
+		top: 0;
+		left: 0;
+		line-height: 100vh;
+		text-align: center;
+		font-size: 10vh;
+	}
+
+	.hidden {
+		display: none;
+	}
+	
+	</style>
+ <body>
+	<config 
+		cellsize="64"
+		timescale="1"
+		timestep="1"
+		level="1"
+	>
+	v1
+	</config>
+	<db id="images">
+		
+		<img id="tile" src="./res/dd/tile.png"></img>
+		<img id="tilemap" src="./res/dd/kenney/colored.png"></img>
+		<img id="level1" src="./res/dd/level1.png"></img>
+	</db>
+	<db id="tilemaps">
+		<tilemap image="tilemap" tilewidth="16" tileheight="16" pad="1">
+			<tile id="ground0" x="0" y="0"></tile>
+			<tile id="ground1" x="1" y="0"></tile>
+			<tile id="ground2" x="2" y="0"></tile>
+			<tile id="wall0" x="0" y="2"></tile>
+			<tile id="pawn0" x="25" y="0"></tile>
+			<tile id="prop0" x="2" y="2"></tile>
+		</tilemap>
+	</db>
+	<db class="dd">
+		<img id="level0" src="./res/dd/level0.png"></img>
+	</db>
+	
+	<canvas id="bitmap_canvas" width="2" height="2"></canvas>
+	<div id="splashscreenloading" class="splashscreen loading"><img id="rice" src="./res/dd/56.png"></img></div>
+
+	<script type="module" async="async" defer="defer" src="./01_bitmap_index.js">
+		
+	</script>
+ </body>
+</html>
