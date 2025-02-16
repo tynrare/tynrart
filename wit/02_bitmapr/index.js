@@ -1,4 +1,12 @@
+function makemappixel(index, w) {
+    const x = index % w;
+    const y = Math.floor(index / w);
+    return (x + y % 2) % 2; // checkerboard
+}
+
 function main() {
+    const vcanvas = document.querySelector("#vcanvas");
+    const vctx = vcanvas?.getContext("2d") ?? null;
     const canvaselement = document.querySelector("#bitmap_canvas");
     const ctx = canvaselement.getContext("2d");
 
@@ -34,40 +42,77 @@ function main() {
         ctx.drawImage(gettileset(), sx * (twp), sy * (twp), tw, tw, wx * cz, wy * cz, cz, cz);
     }
 
-
-
-    let steps = 0;
-    function step() {
+    function drawtile(index, x, y) {
         const w = gettilesetattribute("w") || 49;
         const l = gettilesetattribute("l") || 1078;
-        
-        _predraw(ctx);
 
-        const lax = steps % l;
+
+        const lax = index % l;
         const ax = lax % w;
         const ay = Math.floor(lax / w);
 
+        _predraw(ctx);
+        d(ax, ay, x, y);
+    }
+
+    let steps = 0;
+    let stepx = 0;
+    function step(d = 1) {
+        // --- x 1
         const bw = Math.ceil(canvaselement.width / cz);
         const bh = Math.ceil(canvaselement.height / cz);
-        const lbx = steps % (bw * bh);
+        const lbx = stepx % (bw * bh);
         const bx = lbx % bw;
         const by = Math.floor(lbx / bw);
-        d(ax, ay, bx, by);
+        drawtile(steps, bx, by)
+
+        // --- x 2
+
+        if (vcanvas) {
+            const s = bw < bh ? bw : bh;
+            const sh = s - 2;
+            drawmap(sh, sh);
+        }
 		
-		steps += 1;
+		steps = Math.max(steps + d, 0);
+        stepx += 1;
     }
 
     const tilesetoptions = ["tileset", "tileset1", "tileset2"];
     let tilesetshiftindex = 0;
-    function shift() {
+    function shift(d) {
         tilesetshiftindex = (tilesetshiftindex + 1) % tilesetoptions.length;
         tilesetname = tilesetoptions[tilesetshiftindex];
-        step();
     }
 
     function Inputs() {
-        document.addEventListener("mousedown", () => {
-            shift();
+        let ticking = false;
+        function scroll(d) {
+            step(Math.sign(d));
+        }
+
+        document.addEventListener("wheel", (event) => {
+            const y = event.wheelDelta;
+          
+            if (!ticking) {
+              window.requestAnimationFrame(() => {
+                scroll(y);
+                ticking = false;
+              });
+          
+              ticking = true;
+            }
+          });
+        document.addEventListener("mousedown", (ev) => {
+            switch (ev.button) {
+                case 0:
+                    shift();
+                    step();
+                    break;
+                case 1:
+                    break;
+                
+            }
         })
 
         document.addEventListener("keydown", () => {
@@ -91,6 +136,55 @@ function main() {
     Inputs();
     loop();
     step();
+    
+    function drawmap(w, h) {
+        if (vcanvas.width != w || vcanvas.height != h) {
+            vcanvas.width = w;
+            vcanvas.height = h;
+        }
+
+        var id = vctx.createImageData(w,h); // only do this once per page
+        const dlen = id.data.length / 4;
+        for (let i = 0; i < dlen; i++) {
+            const di = i * 4;
+            const setr = (v) => { id.data[di] = v};
+            const setg = (v) => { id.data[di + 1] = v};
+            const b = id.data[di + 2];
+            const a = id.data[di + 3];
+
+            setr(makemappixel(i, w))
+            
+            setg(0);
+        }
+        //vctx.putImageData( id, 0, 0 ); 
+
+        //const bitmap = vctx.getImageData(0, 0, w, h);
+        const bitmap = id;
+        
+        const bw = canvaselement.width / cz;
+        const bh = canvaselement.height / cz;
+        const cox = Math.floor(bw * 0.5);
+        const coy = Math.floor(bh * 0.5);
+        const mox = Math.floor(w * 0.5);
+        const moy = Math.floor(h * 0.5);
+
+
+        const len = bitmap.data.length / 4;
+        for (let i = 0; i < len; i++) {
+            const di = i * 4;
+            const r = bitmap.data[di];
+            const g = bitmap.data[di + 1];
+            const b = bitmap.data[di + 2];
+            const a = bitmap.data[di + 3];
+
+            const x = i % w;
+            const y = Math.floor(i / w);
+
+            drawtile(r + steps, x + cox - mox, y + coy - moy);
+            //d(r, g, x + cox - mox, y + coy - moy);
+            //drawtile("tilemap", tilename, x + cox - mox, y + coy - moy);
+        }
+    }
 }
 
 
