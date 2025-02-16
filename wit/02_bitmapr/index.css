@@ -4,7 +4,8 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: black;
+	background-color: black;
+	background-image: url("./check.png")
 }
 
 img, canvas {
@@ -28,7 +29,8 @@ db {
     line-height: 100vh;
     text-align: center;
     font-size: 10vh;
-    background-color: black;
+
+	background-image: url("./64.png")
 }
 
 .hidden {
