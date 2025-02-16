@@ -1,0 +1,36 @@
+html, body {
+    overflow: clip;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: black;
+}
+
+img, canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    image-rendering: pixelated;
+}
+
+db {
+    display: none;
+}
+
+.splashscreen {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    line-height: 100vh;
+    text-align: center;
+    font-size: 10vh;
+    background-color: black;
+}
+
+.hidden {
+    display: none;
+}
