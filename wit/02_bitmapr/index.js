@@ -1,21 +1,32 @@
-function makemappixel(index, w) {
-    const x = index % w;
-    const y = Math.floor(index / w);
-    return (x + y % 2) % 2; // checkerboard
+function MapGen() {
+    this.makecheckergrid = makecheckergrid;
+    function makecheckergrid(index, w) {
+        const x = index % w;
+        const y = Math.floor(index / w);
+        return (x + y % 2) % 2; // checkerboard
+    }
 }
 
-function main() {
+const mapgen = new MapGen();
+
+function main(STEPS_N = 66) {
     const vcanvas = document.querySelector("#vcanvas");
     const vctx = vcanvas?.getContext("2d") ?? null;
     const canvaselement = document.querySelector("#bitmap_canvas");
     const ctx = canvaselement.getContext("2d");
 
     const images = {};
+    const bitmaps = {};
+    const tiles = {};
     load();
     function load() {
+        if (vcanvas) {
+            bitmaps["level0"] = genbitlevel(8, 8, mapgen.makecheckergrid);
+            bitmaps["props0"] = genbitlevel(8, 8, (i) => { return i === 0 ? 2 : 0; });
+        }
         const dbimages = document.querySelector("db#images");
-        for (let i = 0; dbimages && i < dbimages.childNodes.length; i++) {
-            const img = dbimages.childNodes[i];
+        for (let i = 0; dbimages && i < dbimages.children.length; i++) {
+            const img = dbimages.children[i];
             const key = img.id;
             if (!key) {
                 continue;
@@ -23,28 +34,42 @@ function main() {
             
             images[key] = img;
         }
+
+        const dbtiles = document.querySelector("db#tileproxy");
+        for (let i = 0; dbtiles && i < dbtiles.children.length; i++) {
+            const tile = dbtiles.children[i];
+            const key = tile.id;
+            const mapindex = tile.getAttribute("mapindex");
+            const tileindex = tile.getAttribute("tileindex")
+            if (!mapindex) {
+                continue;
+            }
+
+            tiles[Number(mapindex)] = Number(tileindex);
+        }
     }
 
     let tilesetname = "tileset";
+
     
-    function gettileset() {
-        return images[tilesetname];
+    function gettileset(imgkey = tilesetname) {
+        return images[imgkey ?? tilesetname];
     }
     
-    function gettilesetattribute(key) {
-        return Number(gettileset().getAttribute(key) ?? 0);
+    function gettilesetattribute(key, imgkey = tilesetname) {
+        return Number(gettileset(imgkey).getAttribute(key) ?? 0);
     }
 
     const tw = 16;
     const twp = tw + 1;
     const cz = 64;
-    const d = (sx, sy, wx, wy) => {
-        ctx.drawImage(gettileset(), sx * (twp), sy * (twp), tw, tw, wx * cz, wy * cz, cz, cz);
+    const d = (sx, sy, wx, wy, tileset) => {
+        ctx.drawImage(tileset ?? gettileset(), sx * (twp), sy * (twp), tw, tw, wx * cz, wy * cz, cz, cz);
     }
 
-    function drawtile(index, x, y) {
-        const w = gettilesetattribute("w") || 49;
-        const l = gettilesetattribute("l") || 1078;
+    function drawtile(index, x, y, imgkey) {
+        const w = gettilesetattribute("w", imgkey) || 49;
+        const l = gettilesetattribute("l", imgkey) || 1078;
 
 
         const lax = index % l;
@@ -52,30 +77,50 @@ function main() {
         const ay = Math.floor(lax / w);
 
         _predraw(ctx);
-        d(ax, ay, x, y);
+        d(ax, ay, x, y, gettileset(imgkey));
     }
 
-    let steps = 0;
+    
+    let steps = STEPS_N;
     let stepx = 0;
-    function step(d = 1) {
+
+    function _step_goats(ss = steps, sx = stepx) {
         // --- x 1
         const bw = Math.ceil(canvaselement.width / cz);
         const bh = Math.ceil(canvaselement.height / cz);
-        const lbx = stepx % (bw * bh);
+        const lbx = sx % (bw * bh);
         const bx = lbx % bw;
         const by = Math.floor(lbx / bw);
-        drawtile(steps, bx, by)
+        drawtile(ss, bx, by)
 
         // --- x 2
 
         if (vcanvas) {
             const s = bw < bh ? bw : bh;
-            const sh = s - 2;
-            drawmap(sh, sh);
+            drawmap("level0");
+            drawmap("props0", "tileset1_t");
         }
-		
-		steps = Math.max(steps + d, 0);
-        stepx += 1;
+    }
+
+    function unstep(d = -1, x = -1) {
+        //steps = Math.max(steps + d, 0);
+        //_step_goats(steps, stepx);
+    }
+    function tostep(d = 1, x = 1) {
+        _step_goats(steps, stepx);
+        steps = (steps + d) % 0xffffff;
+    }
+
+    function step(d = 1, x = 1) {
+        if (x < 0) {
+            stepx = Math.max(stepx + x, 0);
+        }
+
+        tostep(d, x);
+
+        if (x > 0) {
+            stepx = (stepx + x) % 0xffffff;
+        }
     }
 
     const tilesetoptions = ["tileset", "tileset1", "tileset2"];
@@ -88,7 +133,8 @@ function main() {
     function Inputs() {
         let ticking = false;
         function scroll(d) {
-            step(Math.sign(d));
+            const s = Math.sign(d);
+            step(s, s);
         }
 
         document.addEventListener("wheel", (event) => {
@@ -107,7 +153,7 @@ function main() {
             switch (ev.button) {
                 case 0:
                     shift();
-                    step();
+                    step(1);
                     break;
                 case 1:
                     break;
@@ -115,8 +161,8 @@ function main() {
             }
         })
 
-        document.addEventListener("keydown", () => {
-			step();
+        document.addEventListener("keydown", (ev) => {
+			step(ev.keyCode);
         })
     }
 
@@ -136,14 +182,16 @@ function main() {
     Inputs();
     loop();
     step();
+
+
     
-    function drawmap(w, h) {
+    function genbitlevel(w, h, pixfunc) {
         if (vcanvas.width != w || vcanvas.height != h) {
             vcanvas.width = w;
             vcanvas.height = h;
         }
 
-        var id = vctx.createImageData(w,h); // only do this once per page
+        var id = vctx.createImageData(w,h);
         const dlen = id.data.length / 4;
         for (let i = 0; i < dlen; i++) {
             const di = i * 4;
@@ -152,14 +200,21 @@ function main() {
             const b = id.data[di + 2];
             const a = id.data[di + 3];
 
-            setr(makemappixel(i, w))
+            setr(pixfunc(i, w));
             
             setg(0);
         }
-        //vctx.putImageData( id, 0, 0 ); 
 
-        //const bitmap = vctx.getImageData(0, 0, w, h);
-        const bitmap = id;
+        id._width = w;
+        id._height = h;
+
+        return id;
+    }
+    
+    function drawmap(key, imgkey = tilesetname) {
+        const bitmap = bitmaps[key];
+        const w = bitmap._width; 
+        const h = bitmap._height; 
         
         const bw = canvaselement.width / cz;
         const bh = canvaselement.height / cz;
@@ -180,7 +235,7 @@ function main() {
             const x = i % w;
             const y = Math.floor(i / w);
 
-            drawtile(r + steps, x + cox - mox, y + coy - moy);
+            drawtile(tiles[r], x + cox - mox, y + coy - moy, imgkey);
             //d(r, g, x + cox - mox, y + coy - moy);
             //drawtile("tilemap", tilename, x + cox - mox, y + coy - moy);
         }
