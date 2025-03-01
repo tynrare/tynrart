@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, minimal-ui, viewport-fit=cover, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <link rel="icon" type="image/png" href="./tile.png" />
+
+        <title>Skeletonbros • 05a_gameplay</title>
+        <link href="./index_dd.css" rel="stylesheet" />
+        <script src="./index_bd.js"></script>
+		 <script src="./skeletyn.js"></script>
+    </head>
+    <body>
+        <db id="assets">
+            <img id="tileset1" w="49" l="1078" cs="16" pad="1"  src="./kenney/colored-transparent.png" assign="tileset"></img>
+			<tilemap id="alphabet" offset="917" w="13" l="26"/>
+		</db>
+		<db id="spriteproxies">
+			<d name="pawn0" index="25"></d>
+			<d name="pawn0a" index="26"></d>
+			<d name="wall0" index="170"></d>
+			<d name="wall1" index="834"></d>
+			<d name="crate0" index="748"></d>
+			<d name="bomb0" index="486"></d>
+			<d name="explosion0" index="570"></d>
+			<d name="heart_full" index="532"></d>
+			<d name="heart_empty" index="530"></d>
+			<d name="heart" index="529"></d>
+			<d name="letter_zero" index="868"></d>
+			<d name="fish" index="866"></d>
+			<d name="dice_one" index="777"></d>
+			<d name="deck_ace" index="807"></d>
+			<d name="aim0" index="711"></d>
+			<d name="mob_bat" index="418"></d>
+		</db>
+		<db id="entityproxies">
+			<d name="ground0" index="1"></d>
+			<d name="solid0" index="2"></d>
+			<d name="crate0" index="3"></d>
+			<d name="pawn0" index="11"></d>
+			<d name="mob0" index="12"></d>
+			<d name="bomb0" index="21"></d>
+			<d name="explosion0" index="22"></d>
+			<d name="aim0" index="31"></d>
+		</db>
+		<db>
+			<hint>
+				v5.
+			</hint>
+		</db>
+		
+		
+        <canvas id="bitmap_canvas" width="512" height="512"></canvas>
+        <div id="splashscreenloading" class="splashscreen loading"><img id="rice" src="./56.png" width="128"></img></div>
+    
+	<script async="false">
+		function Gameplay(sapp, capp) {
+			const explosion_lifetime = 500;
+		
+			this.run = run;
+			
+			const PLAYSTATES = {
+				LOBBY: 0,
+				PLAY: 1,
+				END: 2
+			}
+			let playstate = PLAYSTATES.PLAY;
+			const level = sapp.get_level();
+			const liminalspace = level.get_liminalspace();
+			const liminaldata = level.get_liminaldata();
+			const db = sapp.get_db();
+			const loop = new tynbox.Loop(step, 100);
+			
+			let pawnposi = 0;
+	
+			function run() {
+				document.addEventListener("keydown", keydown);
+				capp.get_canvas().addEventListener("mousemove", mousemove);
+				capp.get_canvas().addEventListener("mousedown", mousedown);
+				loop.run();
+			}
+			
+			function step(dt) {
+				level.apply_to_entitytype(db.entities["explosion0"], (ci) => explosion_step(ci, dt));
+				level.apply_to_entitytype(db.entities["mob0"], (ci) => mob_step(ci, dt));
+			}
+			
+			function explosion_step(cellindex, dt) {
+				const playstate = liminaldata.getv(cellindex, DATALAYERS.PLAYSTATE);
+				const newplaystate = playstate - dt;
+				liminaldata.setv(newplaystate, cellindex, DATALAYERS.PLAYSTATE);
+				if (newplaystate <= 0) {
+					liminaldata.setv(0, cellindex, DATALAYERS.ENTITY);
+					sapp.drawtile(cellindex);
+				}
+			}
+			
+			function mob_step(cellindex, dt) {
+				if (Math.random() > 0.1) {
+					return;
+				}
+				
+				const dx = Math.sign(Math.random() - 0.5);
+				const dy = Math.sign(Math.random() - 0.5);
+				const dir = Math.sign(Math.random() - 0.5);
+				move_entity(cellindex, dir < 0 ? dx : 0, dir > 0 ? dy : 0);
+			}
+			
+			function spawn_explosion(cellindex) {
+				level.putentity(cellindex, db.entities["explosion0"], db.sprites["explosion0"]);
+				liminaldata.setv(explosion_lifetime, cellindex, DATALAYERS.PLAYSTATE);
+				damage_prop(cellindex);
+				sapp.drawtile(cellindex);
+			}
+			
+			function damage_prop(cellindex) {
+				const nc = cellindex - 2;
+				const proptype = liminaldata.getv(nc, DATALAYERS.ENTITY);
+				if (!proptype) {
+					return;
+				}
+				liminaldata.setv(0, nc, DATALAYERS.ENTITY);
+			}
+			
+			function move_entity(from, dx, dy) {
+				const cellindexb = liminalspace.move(from, dx, dy);
+
+				const solidtype = liminaldata.getv(cellindexb, DATALAYERS.ENTITY);
+				if (solidtype === db.entities["solid0"]) {
+					return null;
+				}
+				const proptype = liminaldata.getv(cellindexb, DATALAYERS.ENTITY);
+				if (proptype > 0) {
+					if(move_entity(cellindexb, dx, dy) === null) {
+						return null;
+					}
+				}
+				if (from == cellindexb) {
+					return null;
+				}
+				liminaldata.copycell(from, cellindexb);
+				liminaldata.setv(0, from, DATALAYERS.ENTITY);
+				
+				sapp.drawtile(from);
+				sapp.drawtile(cellindexb);
+				
+				return cellindexb;
+			}
+			
+			function input_play(code) {
+				let dx = 0;
+				let dy = 0;
+				let spawn = null;
+				let uid = 1;
+
+				switch(code) {
+					case "ArrowRight":
+					uid = 2;
+					case "KeyD":
+						dx = 1;
+						break;
+					case "ArrowLeft":
+					uid = 2;
+					case "KeyA":
+						dx = -1;
+						break;			
+					case "ArrowDown":
+					uid = 2;
+					case "KeyS":
+						dy = 1;
+						break;
+					case "ArrowUp":
+					uid = 2;
+					case "KeyW":
+						dy = -1;
+						break;
+					case "Enter":
+					uid = 2;
+					case "Space":
+						spawn = "bomb0";
+						break;
+					
+				}
+				
+							
+				const cellstomove = [];
+				const cellstospawn = [];
+				const pawndataindex = sapp.get_db().entities["pawn0"];
+				level.apply_to_entitytype(pawndataindex, (cellindex) => {
+					const id = liminaldata.getv(cellindex, DATALAYERS.UID);
+					if (uid != id) {
+						return;
+					}
+					if (dx || dy) {
+						cellstomove.push(cellindex);
+					}
+					if (spawn) {
+						cellstospawn.push(cellindex);
+					}
+				});
+				
+				while (cellstomove.length) {
+					const cellindex = cellstomove.pop();
+					const newpos = move_entity(cellindex, dx, dy);
+					if (newpos !== null) {
+						pawnposi = newpos;
+						trace_aim(pawnposi, lastmapindex);
+					}
+				}
+				
+				while (cellstospawn.length) {
+					const cellindex = cellstospawn.pop();
+				}	
+			}
+		
+			function keydown(ev) {
+				if (ev.repeat) {
+					return;
+				}
+				
+				switch (playstate) {
+					case PLAYSTATES.LOBBY:
+						playstate = PLAYSTATES.PLAY;
+						app.clearall();
+						redraw();
+						break;
+					case PLAYSTATES.PLAY:
+						input_play(ev.code);				
+						break;
+					case PLAYSTATES.END:
+						playstate = PLAYSTATES.LOBBY;
+						app.clearall();
+						redraw();
+						break;
+				}
+				
+			}
+			
+			function shoot_aim() {
+				const db = sapp.get_db();
+				level.apply_to_entitytype(db.entities["aim0"], (index) => spawn_explosion(index + 1));
+			}
+			
+			function trace_aim(from, to) {
+				const ax = liminalspace.get_x_of(from);
+				const ay = liminalspace.get_y_of(from);
+				const bx = liminalspace.get_x_of(to);
+				const by = liminalspace.get_y_of(to);
+				
+				const db = sapp.get_db();
+				
+				level.apply_to_entitytype(db.entities["aim0"], (cellindex) => {
+					liminaldata.setv(0, cellindex, DATALAYERS.ENTITY);
+					sapp.drawtile(cellindex);
+				});
+				
+								
+				let skip = 0;
+				
+				tynbox.bline(ax, ay, bx, by, (x, y) => {
+					if (skip++ < 1) {
+						return;
+					}
+					const index = liminalspace.get_index_of(x, y);
+					
+					const solidtype = liminaldata.getv(index + 1, DATALAYERS.ENTITY);
+					if (solidtype === db.entities["solid0"]) {
+						return false;
+					}
+					
+					level.putentity(index + 2, db.entities["aim0"], db.sprites["aim0"]);
+					sapp.drawtile(index);
+				});
+			}
+			
+			let lastmouseindex = -1;
+			let lastmapindex = -1;
+			function update_mousepos(mouseindex) {
+				if (mouseindex === lastmouseindex) {
+					return;
+				}
+				
+				const maporigin = sapp.get_map_origin();
+				const mox = capp.get_liminalspace().get_x_of(maporigin);
+				const moy = capp.get_liminalspace().get_y_of(maporigin);
+				const cx = capp.get_liminalspace().get_x_of(mouseindex);
+				const cy = capp.get_liminalspace().get_y_of(mouseindex);
+				const mx = cx - mox;
+				const my = cy - moy;
+				
+				lastmouseindex = mouseindex;
+				
+				if (mx < 0 || mx >= level.get_w() || my < 0 || my >= level.get_h()) {
+					return;
+				}
+				
+				const mapindex = liminalspace.get_index_of(mx, my);
+				
+				lastmapindex = mapindex;
+				
+				trace_aim(pawnposi, mapindex);
+
+			}
+			
+			function mousemove(ev) {
+				const lx = ev.layerX;
+				const ly = ev.layerY;
+				const cx = Math.floor(lx / capp.get_cz());
+				const cy = Math.floor(ly / capp.get_cz());
+
+				
+				const mouseindex = capp.get_liminalspace().get_index_of(cx, cy);
+				update_mousepos(mouseindex);
+			}
+			
+			function mousedown(ev) {
+				shoot_aim();
+			}
+		}
+	
+		function main() {
+			const assets = new tynbox.Assets();
+			assets.init(document.querySelector("db#assets"));
+			skeletyn.loaddb("db#spriteproxies", "sprites");
+			skeletyn.loaddb("db#entityproxies", "entities");
+			
+			const canvas = document.querySelector("#bitmap_canvas");
+			const capp = new tynbox.CanvasApp(canvas);
+			capp.run();
+
+			const sapp = skeletyn.run(assets, capp);
+			const gameplay = new Gameplay(sapp, capp);
+			gameplay.run();
+		}
+
+		tynbox.run().then(() => {
+			main();
+
+			console.log("ran.");
+		});
+	</script>
+    </body>
+</html>

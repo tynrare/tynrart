@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, minimal-ui, viewport-fit=cover, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <link rel="icon" type="image/png" href="./tile.png" />
+
+        <title>Skeletonbros ■ skeletonbomb</title>
+        <link href="./index_dd.css" rel="stylesheet" />
+        <script src="./index_cd.js"></script>
+    </head>
+    <body>
+        <db id="assets">
+            <img id="tileset1" w="49" l="1078" cs="16" pad="1"  src="./kenney/colored-transparent.png" assign="tileset"></img>
+			<tilemap id="alphabet" offset="917" w="13" l="26"/>
+		</db>
+		<db id="spriteproxies">
+			<d name="pawn0" index="25"></d>
+			<d name="pawn0a" index="26"></d>
+			<d name="wall0" index="170"></d>
+			<d name="wall1" index="834"></d>
+			<d name="crate0" index="748"></d>
+			<d name="bomb0" index="486"></d>
+			<d name="explosion0" index="570"></d>
+			<d name="heart_full" index="532"></d>
+			<d name="heart_empty" index="530"></d>
+			<d name="heart" index="529"></d>
+			<d name="letter_zero" index="868"></d>
+			<d name="fish" index="866"></d>
+			<d name="dice_one" index="777"></d>
+			<d name="deck_ace" index="807"></d>
+		</db>
+		<db id="entityproxies">
+			<d name="ground0" index="1"></d>
+			<d name="solid0" index="2"></d>
+			<d name="crate0" index="3"></d>
+			<d name="pawn0" index="11"></d>
+			<d name="bomb0" index="21"></d>
+			<d name="explosion0" index="22"></d>
+		</db>
+		<db>
+			<hint>
+				Тест живого геймплея на примере клона бомбермена.
+			</hint>
+		</db>
+		
+		
+        <canvas id="bitmap_canvas" width="512" height="512"></canvas>
+        <div id="splashscreenloading" class="splashscreen loading"><img id="rice" src="./56.png" width="128"></img></div>
+    
+	<script async="false">
+		
+		const MAPW = 8;
+		const MAPH = 8;
+		const MAPLAYERS = {
+			GROUNDS: 0,
+			PAWNS: 1,
+			PROPS: 2,
+			EFFECTS: 3
+		}
+		const DATALAYERS = {
+			ENTITY: 0,
+			SPRITE: 1,
+			UID: 2,
+			PLAYSTATE: 3
+		}
+					
+		const sprites = {};
+		const entities = {};
+		const tilemaps = {};
+		
+		function Gameplay(app) {
+			const explosion_dist = 2;
+			const bomb_lifetime = 1000;
+			const explosion_lifetime = 1000;
+			const pawns_health = 3;
+			const PLAYSTATES = {
+				LOBBY: 0,
+				PLAY: 1,
+				END: 2
+			}
+			let playstate = PLAYSTATES.LOBBY;
+
+			this.run = run;
+			this.redraw = redraw;
+
+			function PawnState() {
+				let health = pawns_health;
+
+				this.set_health = (v) => { health = v };
+				this.get_health = () => { return health };
+				this.add_health = (v) => { health += v};
+			}
+
+			const pawns = {};
+		
+			const level = app.get_level();
+			const liminalspace = level.get_liminalspace();
+			const mapdata = level.get_mapdata();
+			
+			const loop = new tynbox.Loop(step, 100);
+			
+			function run() {
+				document.addEventListener("keydown", keydown);
+				loop.run();
+				pawns[1] = new PawnState();
+				pawns[2] = new PawnState();
+				redraw();
+			}
+			
+			function step(dt) {
+				apply_to_entitytype(entities["bomb0"], MAPLAYERS.PROPS, (ci) => bomb_step(ci, dt));
+				apply_to_entitytype(entities["explosion0"], MAPLAYERS.EFFECTS, (ci) => explosion_step(ci, dt));
+			}
+			
+			function redraw() {
+				switch (playstate) {
+					case PLAYSTATES.LOBBY:
+						app.print(0, "skeletonbomb.");
+						break;
+					case PLAYSTATES.PLAY:
+						update_gui();
+						app.drawmap();					
+						break;
+					case PLAYSTATES.END:
+						app.clearall();
+						const t1 = pawns[1].get_health() > pawns[2].get_health() ? "p1" : "p2";
+						app.print(0, `${t1} won.`);
+						pawns[1].set_health(pawns_health);
+						pawns[2].set_health(pawns_health);
+						break;
+				}
+
+			}
+
+			// -- gui
+
+			function update_gui() {
+				const pawn1 = pawns[1];
+				const pawn2 = pawns[2];
+				const hf = sprites["heart_full"];
+				const he = sprites["heart_empty"]; 
+				for (let i = 0; i < pawns_health; i++) {
+					const sprite1 = pawn1.get_health() > i ? hf : he;
+					const sprite2 = pawn2.get_health() > i ? hf : he;
+					app.clearcell(i);
+					app.clearcell(-i-1);
+					app.draw(sprite1, i);
+					app.draw(sprite2, -i-1);
+				}
+			}
+			
+			// -- entity state logic
+			
+			function bomb_step(cellindex, dt) {
+				const playstate = mapdata.getv(cellindex, MAPLAYERS.PROPS, DATALAYERS.PLAYSTATE);
+				const newplaystate = playstate - dt;
+				mapdata.setv(newplaystate, cellindex, MAPLAYERS.PROPS, DATALAYERS.PLAYSTATE);
+				if (newplaystate <= 0) {
+					explode_bomb(cellindex);
+				}
+			}
+			
+			function explosion_step(cellindex, dt) {
+				const layerindex = MAPLAYERS.EFFECTS;
+				const playstate = mapdata.getv(cellindex, layerindex, DATALAYERS.PLAYSTATE);
+				const newplaystate = playstate - dt;
+				mapdata.setv(newplaystate, cellindex, layerindex, DATALAYERS.PLAYSTATE);
+				if (newplaystate <= 0) {
+					mapdata.setv(0, cellindex, layerindex, DATALAYERS.ENTITY);
+					drawtile(cellindex);
+				}
+			}
+			
+			function damage_prop(cellindex) {
+				const proptype = mapdata.getv(cellindex, MAPLAYERS.PROPS, DATALAYERS.ENTITY);
+				if (!proptype) {
+					return;
+				}
+				mapdata.setv(0, cellindex, MAPLAYERS.PROPS, DATALAYERS.ENTITY);
+			}
+			
+			function damage_pawn(cellindex) {
+				const pawntype = mapdata.getv(cellindex, MAPLAYERS.PAWNS, DATALAYERS.ENTITY);
+				if (!pawntype) {
+					return;
+				}
+				const pawnid = mapdata.getv(cellindex, MAPLAYERS.PAWNS, DATALAYERS.UID);
+				const pawn = pawns[pawnid];
+				pawn.add_health(-1);
+				if (pawn.get_health() <= 0) {
+					playstate = PLAYSTATES.END;
+					redraw();
+					return;
+				}
+				update_gui();
+			}
+			
+			function spawn_explosion(cellindex) {
+				const groundtype = mapdata.getv(cellindex, MAPLAYERS.GROUNDS, DATALAYERS.ENTITY);
+				if (groundtype === entities["solid0"]) {
+					return;
+				}
+				
+				level.putentity(cellindex, MAPLAYERS.EFFECTS, entities["explosion0"], sprites["explosion0"]);
+				mapdata.setv(explosion_lifetime, cellindex, MAPLAYERS.EFFECTS, DATALAYERS.PLAYSTATE);
+				damage_prop(cellindex);
+				damage_pawn(cellindex);
+				drawtile(cellindex);
+			}
+			
+			function explode_bomb(cellindex) {
+				mapdata.setv(0, cellindex, MAPLAYERS.PROPS, DATALAYERS.ENTITY);
+				const lx = liminalspace.get_lx();
+				const ly = liminalspace.get_ly();
+				const xa = liminalspace.get_x_of(cellindex);
+				const ya = liminalspace.get_y_of(cellindex);
+				
+				const sx = xa;
+				const sy = ya;
+				for (let i = 0; i <= explosion_dist; i++) {
+					const dx = i - explosion_dist * 0.5;
+					const dy = i - explosion_dist * 0.5;
+					//const xb = liminalspace.wrap(xa + dx, lx);
+					//const yb = liminalspace.wrap(ya + dy, ly);
+					xb = xa + dx;
+					yb = ya + dy;
+					
+					const cellindexa = liminalspace.get_index_of(xb, ya);
+					const cellindexb = liminalspace.get_index_of(xa, yb);
+					if (xb >= 0 && xb < lx) {
+						spawn_explosion(cellindexa);
+					}
+					if (yb >= 0 && yb < ly && cellindexa !== cellindexb) {
+						spawn_explosion(cellindexb);
+					}
+				}
+			}
+			
+			function putbomb(cellindex) {
+				level.putentity(cellindex, MAPLAYERS.PROPS, entities["bomb0"], sprites["bomb0"]);
+				mapdata.setv(bomb_lifetime, cellindex, MAPLAYERS.PROPS, DATALAYERS.PLAYSTATE);
+				drawtile(cellindex);
+			}
+			
+			// -- generics
+			
+			function drawtile(cellindex) {
+				if (playstate !== PLAYSTATES.PLAY) {
+					return;
+				}
+				app.drawtile(cellindex);
+			}
+			
+			function apply_to_entitytype(typeindex, layerindex, callback) {
+				for (let i = 0; i < liminalspace.get_len(); i++) {
+					const v = mapdata.getv(i, layerindex, DATALAYERS.ENTITY);
+					if (v === typeindex) {
+						callback(i);
+					}
+				}
+			}
+			
+			function move_entity(layerindex, cellindex, dx, dy) {
+				if (!dx && !dy) {
+					return false;
+				}
+				const lx = liminalspace.get_lx();
+				const ly = liminalspace.get_ly();
+				const xa = liminalspace.get_x_of(cellindex);
+				const ya = liminalspace.get_y_of(cellindex);
+				const xb = liminalspace.wrap(xa + dx, lx);
+				const yb = liminalspace.wrap(ya + dy, ly);
+				const cellindexb = liminalspace.get_index_of(xb, yb);
+				if (cellindex == cellindexb) {
+					return;
+				}
+				const groundtype = mapdata.getv(cellindexb, MAPLAYERS.GROUNDS, DATALAYERS.ENTITY);
+				if (groundtype === entities["solid0"]) {
+					return;
+				}
+				const pawntype = mapdata.getv(cellindexb, MAPLAYERS.PAWNS, DATALAYERS.ENTITY);
+				if (pawntype > 0) {
+					return false;
+				}
+				const proptype = mapdata.getv(cellindexb, MAPLAYERS.PROPS, DATALAYERS.ENTITY);
+				if (proptype > 0) {
+					if(!move_entity(MAPLAYERS.PROPS, cellindexb, dx, dy)) {
+						return false;
+					}
+				}
+				mapdata.copycell(cellindex, cellindexb, layerindex);
+				mapdata.setv(0, cellindex, layerindex, DATALAYERS.ENTITY);
+				
+				drawtile(cellindex);
+				drawtile(cellindexb);
+				
+				return true;
+			}
+			
+			function input_play(code) {
+				let dx = 0;
+				let dy = 0;
+				let spawn = null;
+				let uid = 1;
+
+				switch(code) {
+					case "ArrowRight":
+					uid = 2;
+					case "KeyD":
+						dx = 1;
+						break;
+					case "ArrowLeft":
+					uid = 2;
+					case "KeyA":
+						dx = -1;
+						break;			
+					case "ArrowDown":
+					uid = 2;
+					case "KeyS":
+						dy = 1;
+						break;
+					case "ArrowUp":
+					uid = 2;
+					case "KeyW":
+						dy = -1;
+						break;
+					case "Enter":
+					uid = 2;
+					case "Space":
+						spawn = "bomb0";
+						break;
+					
+				}
+				
+							
+				const cellstomove = [];
+				const cellstospawn = [];
+				const pawndataindex = entities["pawn0"];
+				const layerindex = MAPLAYERS.PAWNS;
+				apply_to_entitytype(pawndataindex, layerindex, (cellindex) => {
+					const id = mapdata.getv(cellindex, layerindex, DATALAYERS.UID);
+					if (uid != id) {
+						return;
+					}
+					if (dx || dy) {
+						cellstomove.push(cellindex);
+					}
+					if (spawn) {
+						cellstospawn.push(cellindex);
+					}
+				});
+				
+				while (cellstomove.length) {
+					const cellindex = cellstomove.pop();
+					move_entity(layerindex, cellindex, dx, dy);
+				}
+				
+				while (cellstospawn.length) {
+					const cellindex = cellstospawn.pop();
+					putbomb(cellindex);
+				}	
+			}
+			
+			function keydown(ev) {
+				if (ev.repeat) {
+					return;
+				}
+				
+				switch (playstate) {
+					case PLAYSTATES.LOBBY:
+						playstate = PLAYSTATES.PLAY;
+						app.clearall();
+						redraw();
+						break;
+					case PLAYSTATES.PLAY:
+						input_play(ev.code);				
+						break;
+					case PLAYSTATES.END:
+						playstate = PLAYSTATES.LOBBY;
+						app.clearall();
+						redraw();
+						break;
+				}
+				
+			}
+		}
+		
+		function Level(w, h) {
+			const mapdata = new tynbox.LiminalData(w * h, 4, 4);
+			const mapaliminalspace = new tynbox.LiminalSpace(w, h);
+			
+			this.get_mapdata = () => { return mapdata };
+			this.get_liminalspace = () => { return mapaliminalspace };
+			this.make = make;
+			this.putentity = putentity;
+			
+			function putentity(cellindex, layerindex, entityid, spriteindex, uid = 0) {
+				mapdata.setv(entityid, cellindex, layerindex, DATALAYERS.ENTITY);
+				mapdata.setv(spriteindex, cellindex, layerindex, DATALAYERS.SPRITE);
+				mapdata.setv(uid, cellindex, layerindex, DATALAYERS.UID);
+			}
+			
+			function make() {
+				// make map ground
+				for (let i = 0; i < mapdata.get_len(); i++) {
+					putentity(i, MAPLAYERS.GROUNDS, entities["ground0"], makecheckergrid(i, w));
+				}
+				
+				// place pawn
+				const PAWNA_SPAWN_CELL = 0;
+				const PAWNB_SPAWN_CELL = mapaliminalspace.get_len() - 1;
+				putentity(PAWNA_SPAWN_CELL, MAPLAYERS.PAWNS, entities["pawn0"], sprites["pawn0"], 1);
+				putentity(PAWNB_SPAWN_CELL, MAPLAYERS.PAWNS, entities["pawn0"], sprites["pawn0a"], 2);
+				
+				// place wall
+				const wallstoplace = [17, 19, 42];
+				for (const i in wallstoplace) {
+					putentity(wallstoplace[i], MAPLAYERS.GROUNDS, entities["solid0"], sprites["wall0"]);
+				}
+				
+				const cratestoplace = [18, 50, 51];
+				for (const i in cratestoplace) {
+					putentity(cratestoplace[i], MAPLAYERS.PROPS, entities["crate0"], sprites["crate0"]);
+				}
+			}
+			
+		}
+		
+		function SkelebombApp(assets, capp) {
+			this.drawmap = drawmap;
+			this.drawtile = drawtile;
+			this.draw = draw;
+			this.run = run;
+			this.print = print;
+			this.clearcell = clearcell;
+			this.recalc = recalc;
+			this.clearall = clearall;
+			
+			const level = new Level(MAPW, MAPH);
+			
+			this.get_level = () => { return level };
+			
+			const liminalspace = level.get_liminalspace();
+			const mapdata = level.get_mapdata();
+
+			function run() {
+				level.make();
+				recalc();
+			}
+			
+			let canvas_center_index = 0;
+			function recalc() {
+				const sw = liminalspace.get_lx();
+				const sh = liminalspace.get_ly();
+				const dw = capp.get_liminalspace().get_lx();
+				const dh = capp.get_liminalspace().get_ly();
+				
+				const canvas_center_x = Math.floor(dw / 2) - Math.floor(sw / 2);
+				const canvas_center_y = Math.floor(dh / 2) - Math.floor(sh / 2);
+				const cindex = capp.get_liminalspace().get_index_of(canvas_center_x, canvas_center_y);
+				canvas_center_index = cindex;
+			}
+			
+			function print(at, text) {
+				const map = assets.get_assetk("tilemap", "alphabet");
+				const tileset = assets.get_asseti("tileset", 0);
+				const asterixindex = sprites["bomb0"];
+				const num_zero_index = sprites["letter_zero"];
+				for(let i = 0; i < text.length; i++) {
+					const charcode = text.charCodeAt(i);
+					let spriteindex = 0;
+					if (charcode >= 48 && charcode <= 57) {
+						spriteindex = charcode - 48 + num_zero_index;
+					} else if (charcode >= 97 && charcode <= 122) {
+						spriteindex = tileset.warp(charcode - 97, map.get_offset(), map.get_width());
+					} else if (charcode == 32) {
+						spriteindex = 0;
+					} else {
+						spriteindex = asterixindex
+					}
+					
+					draw(spriteindex, at + i);
+				}
+			}
+
+			function draw(spriteindex, cellindex) {
+				if (spriteindex === 0) {
+					return;	
+				}
+				const tileset = assets.get_asseti("tileset", 0);
+				capp.drawtile(tileset, spriteindex, cellindex);
+			}
+			
+			function drawentity(indexa, layerindex, cellindex) {
+				const entityindex = mapdata.getv(indexa, layerindex, DATALAYERS.ENTITY);
+				if (entityindex === 0) {
+					return;	
+				}
+				
+				draw(mapdata.getv(indexa, layerindex, DATALAYERS.SPRITE), cellindex);
+			}
+			
+			function drawtile(mapindex) {
+				const ay = liminalspace.get_y_of(mapindex);
+				const dw = capp.get_liminalspace().get_lx();
+				const dh = capp.get_liminalspace().get_ly();
+					
+				const pindex = mapindex + (dw - liminalspace.get_lx()) * ay;
+				const cellindex = pindex + canvas_center_index;
+				
+				clearcell(cellindex);
+				drawentity(mapindex, MAPLAYERS.GROUNDS, cellindex);
+				drawentity(mapindex, MAPLAYERS.PAWNS, cellindex);
+				drawentity(mapindex, MAPLAYERS.PROPS, cellindex);
+				drawentity(mapindex, MAPLAYERS.EFFECTS, cellindex);
+			}
+
+			function drawmap() {
+				const tilemap = assets.get_asseti("tileset", 0);
+				const len = liminalspace.get_len();
+				
+				for (let i = 0; i < len; i++) {
+					drawtile(i);
+				}
+			}
+
+			function clearcell(index) {
+				capp.cleartile(index);
+			}
+
+			function clearall() {
+				capp.clearall();
+			}
+		}
+
+		function main() {
+			const dbassets = document.querySelector("db#assets");
+			const assets = new tynbox.Assets();
+			assets.init(dbassets);
+			
+			const dbspriteproxies = document.querySelector("db#spriteproxies");
+			for (let i = 0; spriteproxies && i < spriteproxies.children.length; i++) {
+			  const tile = spriteproxies.children[i];
+			  const name = tile.getAttribute("name");
+			  const index = tile.getAttribute("index");
+			  sprites[name] = Number(index);
+			}
+			const dbentityproxies = document.querySelector("db#entityproxies");
+			for (let i = 0; dbentityproxies && i < dbentityproxies.children.length; i++) {
+			  const tile = dbentityproxies.children[i];
+			  const name = tile.getAttribute("name");
+			  const index = tile.getAttribute("index");
+			  entities[name] = Number(index);
+			}
+
+			const canvas = document.querySelector("#bitmap_canvas");
+			const capp = new tynbox.CanvasApp(canvas);
+			capp.run();
+			
+			const skeleapp = new SkelebombApp(assets, capp);
+			skeleapp.run();
+			
+			const gameplay = new Gameplay(skeleapp);
+			gameplay.run();
+			
+			const loop = new tynbox.Loop(() => {
+				if (capp.resize()) {
+					skeleapp.recalc();
+					gameplay.redraw();
+				}
+			});
+			loop.run();
+		}
+
+		tynbox.run().then(() => {
+			main();
+
+			console.log("ran.");
+		});
+
+		function makecheckergrid(index, w) {
+        	const x = index % w;
+        	const y = Math.floor(index / w);
+        	return (x + y % 2) % 2; // checkerboard
+    	}
+
+	</script>
+    </body>
+</html>
