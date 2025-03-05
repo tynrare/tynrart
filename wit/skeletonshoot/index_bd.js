@@ -78,7 +78,7 @@ function CanvasApp(canvas, cz = 64) {
     const ch = document.body.clientHeight;
     const bw = cw - (cw % cz);
     const bh = ch - (ch % cz);
-    if (bw != canvas.width || bh != canvas.height) {
+    if (bw != canvas.width || bh != canvas.height || !liminalspace) {
       canvas.width = bw;
       canvas.height = bh;
     } else {
